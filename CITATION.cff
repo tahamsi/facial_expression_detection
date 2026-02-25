@@ -1,0 +1,16 @@
+cff-version: 1.2.0
+title: "Facial Expression Detection"
+message: "If you use this software, please cite it using the metadata below."
+type: software
+version: "0.1.0"
+date-released: 2026-02-25
+license: "MIT"
+repository-code: "https://github.com/tahamsi/facial_expression_detection"
+abstract: "Utilities for DeepFace-based emotion CSV export and detector backend sanity checks."
+authors:
+  - family-names: "Tahamsi"
+keywords:
+  - facial expression recognition
+  - emotion analysis
+  - deepface
+  - fairness

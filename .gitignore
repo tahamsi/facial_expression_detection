@@ -3,6 +3,18 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Project datasets / generated artifacts
+data/*
+!data/.gitkeep
+!data/README.md
+emotion_results.csv
+face_detection_sanity.csv
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.m4v
+
 # C extensions
 *.so
 

@@ -1,6 +1,0 @@
-XX-YY-ZZ-WW
-
-XX= 01(Happy),02(Sad),03(Angry),04(Surprised),05(Neutral)
-YY= 01(Kids),02(Dogs)
-ZZ=Serial of participant
-WW=01(East Asian),02(White Western),03(African),04(Middle Eastern)

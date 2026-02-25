@@ -1,0 +1,60 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "facial-expression-detection"
+version = "0.1.0"
+description = "Emotion CSV export and detector backend sanity checks using DeepFace."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "tahamsi" }]
+dependencies = [
+  "deepface>=0.0.98",
+  "opencv-python>=4.8",
+  "pandas>=2.0",
+  "tqdm>=4.66",
+]
+
+[project.optional-dependencies]
+dev = [
+  "black>=25.1.0",
+  "pytest>=8.0.0",
+  "ruff>=0.9.0",
+]
+gpu = [
+  "tensorflow[and-cuda]>=2.16; platform_system == 'Linux' and platform_machine == 'x86_64'",
+]
+dlib = [
+  "dlib>=19.24",
+]
+
+[project.scripts]
+emotion-detection = "facial_expression_detection.emotion_cli:main"
+face-detection-sanity = "facial_expression_detection.detector_cli:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+src = ["src", "scripts", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["facial_expression_detection"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

@@ -1,168 +1,175 @@
-# Face Recognition Pipeline (Emotion + Face-Detection Sanity Check)
+# Facial Expression Detection
 
-This project runs two workflows on your local video dataset:
+Professionalized research utility for two reproducible workflows over local video data:
 
-1) **Emotion detection across multiple backends/models**
-2) **Face-detection sanity check per backend**
+1. Emotion CSV export using DeepFace emotion analysis.
+2. Face-detector backend sanity checks.
 
-Both scripts are in `scripts/` and read videos from the `data/` folder by default (override with `--data-dir`).
+## What This Repository Does
 
----
+- Scans videos recursively from a data directory.
+- Runs DeepFace `analyze(..., actions=["emotion"])` to estimate dominant emotion.
+- Compares detector backends (for example `opencv`, `mtcnn`, `yunet`) for robustness.
+- Exports structured CSV outputs for downstream analysis.
 
-## Folder layout
+## What This Repository Does NOT Do (Yet)
 
-```
-face-recognition/
-  data/                    # Place your videos here (recursively searched)
+- No model training or fine-tuning.
+- No identity recognition benchmarking.
+- No causal or clinical interpretation of emotions.
+- No fairness mitigation methods; this repo provides measurement utilities only.
+
+## Repository Layout
+
+```text
+facial_expression_detection/
+  src/facial_expression_detection/
   scripts/
-    emotion_detection.py    # Dominant emotion per video, backend, model
-    face_detection.py       # Face-detection sanity check per backend
-  emotion_results.csv       # Output from emotion_detection.py
-  face_detection_sanity.csv # Output from face_detection.py
+    emotion_detection.py
+    face_detection.py
+  data/
+  tests/
+  .github/workflows/ci.yml
 ```
 
----
+## Installation
 
-## Requirements
+Requires Python 3.10+.
 
-- Python 3.10+
-- A working GPU environment (optional but recommended)
-- Core packages:
-  - `deepface`
-  - `tensorflow[and-cuda]` (for GPU)
-  - `opencv-python`
-  - `pandas`
-  - `tqdm`
-
-Optional backends require extra dependencies (examples):
-- `dlib` backend: `pip install dlib` (requires `cmake` + build tools)
-- `mediapipe` backend: `pip install mediapipe`
-- `yolo*` backends: may require extra packages or weights
-
-> Tip: If a backend fails to detect any faces, it will still be listed but usually won’t produce a `dominant_emotion`.
-
----
-
-## Data setup
-
-Move or rename your previous `test/` folder to `data/`, then place videos under `data/`. Any of these extensions are accepted:
-
-```
-.mp4 .mov .avi .mkv .m4v
-```
-
-Subfolders are scanned recursively.
-
----
-
-## 1) Emotion detection
-
-This script computes the **dominant emotion for each video**, for every available backend/model combination. It samples frames at ~1 FPS and aggregates emotion votes.
-
-Run (default `data/`):
+### Core (CPU)
 
 ```bash
-python scripts/emotion_detection.py
+python -m pip install -e .
 ```
 
-Or specify a custom folder:
+### Development tools
 
 ```bash
-python scripts/emotion_detection.py --data-dir /path/to/videos
+python -m pip install -e .[dev]
 ```
 
-Output: `emotion_results.csv`
-
-Columns:
-- `video_name`
-- `backend`
-- `supported_model`
-- `dominant_emotion`
-
----
-
-## 2) Face-detection sanity check
-
-This script **tests face detection only** (no emotion) for each backend using a few sample frames per video. It helps you identify which backends can detect faces in your data.
-
-Run (default `data/`):
+### Optional GPU runtime (Linux x86_64)
 
 ```bash
-python scripts/face_detection.py
+python -m pip install -e .[gpu]
 ```
 
-Or specify a custom folder:
+### Optional dlib backend support
 
 ```bash
-python scripts/face_detection.py --data-dir /path/to/videos
+python -m pip install -e .[dlib]
 ```
 
-Output: `face_detection_sanity.csv`
+A minimal `requirements.txt` is included for users who prefer requirements files.
 
-Columns:
-- `video_name`
-- `backend`
-- `frame_index`
-- `faces_detected`
-- `success` (True/False)
+## Data Setup
 
----
+Place videos under `data/` (subfolders supported). Supported extensions:
 
-## GPU verification (optional but recommended)
+- `.mp4`
+- `.mov`
+- `.avi`
+- `.mkv`
+- `.m4v`
 
-Check whether TensorFlow sees your GPU:
+Project hygiene defaults:
+
+- `data/` content and common video extensions are git-ignored.
+- Generated CSV outputs are git-ignored.
+
+## Pipeline 1: Emotion CSV Export
+
+Run:
 
 ```bash
-TF_CPP_MIN_LOG_LEVEL=3 python - <<'PY'
-import tensorflow as tf
-print(tf.config.list_physical_devices("GPU"))
-PY
+python scripts/emotion_detection.py --data-dir data --output-csv emotion_results.csv
 ```
 
-Expected output example:
-
-```
-[PhysicalDevice(name='/physical_device:GPU:0', device_type='GPU')]
-```
-
----
-
-## Common issues
-
-### 1) Backends return no emotion
-
-Emotion is only computed **after a face is detected**. If a backend can’t detect a face, the dominant emotion will be `None`.
-
-Use the sanity check (`face_detection.py`) to identify which backends are working on your data.
-
-### 2) `dlib` install fails
-
-Install system prerequisites:
+Optional single-frame diagnostic mode:
 
 ```bash
-sudo apt-get update
-sudo apt-get install -y cmake build-essential
-pip install dlib
+python scripts/emotion_detection.py --single-frame-test --video path/to/video.mp4 --backend retinaface --frame-index 0 --align
 ```
 
-### 3) GPU not detected by TensorFlow
+### DeepFace usage clarification
 
-Your NVIDIA driver may be installed, but TensorFlow might not have CUDA/CUDNN runtime libraries. Try:
+This pipeline uses DeepFace for **facial attribute emotion analysis**. It does **not** compare face-recognition identity models (VGG-Face, Facenet, ArcFace, etc.).
+
+Comparison in this repo is between **detector backends**, not identity-recognition models.
+
+### Emotion CSV columns
+
+- `video_name`: filename only.
+- `video_relpath`: path relative to `--data-dir`.
+- `backend`: detector backend used by DeepFace.
+- `emotion_analyzer`: fixed value `deepface_emotion_attribute_head`.
+- `supported_model`: backward-compatibility alias of `emotion_analyzer`.
+- `dominant_emotion`: dominant label from sampled frames.
+- `sampled_frames`: number of frames sampled (~1 FPS).
+- `analyzed_frames`: sampled frames with a valid dominant emotion output.
+
+## Pipeline 2: Detector Backend Sanity Check
+
+Run:
 
 ```bash
-python -m pip install --upgrade pip
-python -m pip install --no-cache-dir "tensorflow[and-cuda]==2.20.*"
+python scripts/face_detection.py --data-dir data --output-csv face_detection_sanity.csv
 ```
 
----
+### Detector sanity CSV columns
 
-## Tweaks
+- `video_name`: filename only.
+- `video_relpath`: path relative to `--data-dir`.
+- `backend`: detector backend.
+- `frame_index`: sampled frame index.
+- `faces_detected`: number of faces returned by DeepFace extraction.
+- `success`: `true` when `faces_detected > 0`.
 
-Open the scripts to adjust:
-- `SAMPLES_PER_VIDEO` in `face_detection.py`
-- `backends` or `supported_models` lists
-- Frame sampling rate in `emotion_detection.py`
+## Determinism and Reproducibility
 
----
+- Recursive video discovery is sorted.
+- Backend execution order is fixed.
+- Emotion sampling uses fixed ~1 FPS intervals from video FPS metadata.
+- Sanity-check frame indices are deterministic and evenly spaced.
+- Emotion ties are resolved deterministically (count descending, label ascending).
 
-If you want a resume-safe CSV, per-frame emotion logs, or a smaller backend/model list, I can add those.
+## Migration Notes
+
+Previous versions iterated over identity-recognition model names during emotion analysis. That behavior was conceptually misleading and has been removed.
+
+- New behavior: one row per `(video, backend)` for emotion export.
+- Compatibility aid: `supported_model` column is retained as a constant alias.
+
+## Data / Ethics Note
+
+You must ensure:
+
+- participant consent for collection and processing,
+- lawful basis for data use,
+- appropriate licensing/permissions for all media,
+- secure handling of personally identifiable recordings.
+
+Do not commit real participant recordings to this repository.
+
+## Limitations & Fairness Caveats
+
+- Emotion recognition systems can be biased across demographics and cultures.
+- Expressions and affect labels may not transfer across social contexts.
+- Predicted labels are proxies, not ground-truth internal emotional states.
+- Detector failure can silently reduce analyzed frames and skew aggregate results.
+
+## Acknowledgement
+
+Exeter Internal Fund - Towards Inclusive AI: Investigating Fairness in Emotion Recognition Algorithms Across Cultures
+
+## Development Checks
+
+```bash
+ruff check .
+black --check .
+pytest
+```
+
+## License
+
+MIT (see `LICENSE`).
